@@ -67,11 +67,15 @@ Goals:
 ✅ Deliverable: Fully functional, tested, and polished Game Discovery app.
 
 # Team members' tasks:
-1- Adham Ali & Amr Khaled ( Responsible for UI and Jetpack Compose)
+1- Adham Ali (Responsible for Home page)
 
-2- Marwan Mohamed & Mohamaed Ibrahim ( Responsible for backend Development with Intents and views)
+2- Amr Khaled Mohamed (Responsible for Favorites and Settings page)
 
-3- Youssef Mohamed ( Responsible for Api and its connections) 
+3- Marwan Mohamed (Responsible for the Filter and Search page)
+
+4- Mohamaed Ibrahim (Responsible for Game Details page)
+
+5- Youssef Mohamed ( Responsible for Login, Signup, and splash screen) 
 
 
 
