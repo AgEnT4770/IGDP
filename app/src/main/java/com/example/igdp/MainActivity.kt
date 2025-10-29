@@ -6,12 +6,16 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -37,16 +41,24 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.rememberAsyncImagePainter
 import com.example.igdp.ui.theme.IGDPTheme
 import kotlinx.coroutines.launch
 
@@ -75,6 +87,11 @@ fun MainScreen() {
     )
     val pagerState = rememberPagerState(pageCount = { navItems.size })
     val coroutineScope = rememberCoroutineScope()
+    var userScrollEnabled by remember { mutableStateOf(true) }
+
+    LaunchedEffect(pagerState.currentPage) {
+        userScrollEnabled = true
+    }
 
 
     Scaffold(
@@ -123,9 +140,18 @@ fun MainScreen() {
             }
         }
     ) { innerPadding ->
-        HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize(),
+            userScrollEnabled = userScrollEnabled
+        ) { page ->
             when (page) {
-                0 -> ScrollContent(innerPadding)
+                0 -> ScrollContent(
+                    innerPadding = innerPadding,
+                    onUserInteractingWithLazyRow = { isInteracting ->
+                        userScrollEnabled = !isInteracting
+                    }
+                )
                 1 -> SearchPage(modifier = Modifier.padding(innerPadding))
                 2 -> DiscoverPage(modifier = Modifier.padding(innerPadding))
                 3 -> ProfilePage(modifier = Modifier.padding(innerPadding))
@@ -135,20 +161,21 @@ fun MainScreen() {
 }
 
 @Composable
-fun ScrollContent(innerPadding: PaddingValues) {
-    val categories = mapOf(
-        "Trending" to List(10) { "Game ${it + 1}" },
-        "Action" to List(10) { "Game ${it + 1}" },
-        "Adventure" to List(10) { "Game ${it + 1}" },
-        "RPG" to List(10) { "Game ${it + 1}" },
-        "Strategy" to List(10) { "Game ${it + 1}" },
-        "Indie" to List(10) { "Game ${it + 1}" }
-    )
+fun ScrollContent(
+    innerPadding: PaddingValues,
+    gameViewModel: GameViewModel = viewModel(),
+    onUserInteractingWithLazyRow: (Boolean) -> Unit
+) {
+    LaunchedEffect(Unit) {
+        gameViewModel.fetchGames()
+    }
+
+    val gamesByCategory = gameViewModel.games.value
 
     LazyColumn(
         modifier = Modifier.padding(innerPadding)
     ) {
-        categories.forEach { (category, games) ->
+        gamesByCategory.forEach { (category, games) ->
             item {
                 Text(
                     text = category,
@@ -158,23 +185,41 @@ fun ScrollContent(innerPadding: PaddingValues) {
             }
             item {
                 LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp)
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.pointerInput(Unit) {
+                        detectTapGestures(
+                            onPress = { 
+                                onUserInteractingWithLazyRow(true)
+                                try {
+                                    awaitRelease()
+                                } finally {
+                                    onUserInteractingWithLazyRow(false)
+                                }
+                            }
+                        )
+                    }
                 ) {
                     items(games) { game ->
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.padding(end = 16.dp)
+                            modifier = Modifier.width(120.dp)
                         ) {
                             Image(
-                                painter = painterResource(id = R.drawable.gamingbook),
-                                contentDescription = game,
-                                modifier = Modifier.size(120.dp),
+                                painter = rememberAsyncImagePainter(game.background_image),
+                                contentDescription = game.name,
+                                modifier = Modifier
+                                    .height(160.dp)
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp)),
                                 contentScale = ContentScale.Crop
                             )
                             Text(
-                                text = game,
+                                text = game.name,
                                 style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.padding(top = 8.dp)
+                                modifier = Modifier.padding(top = 8.dp),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
