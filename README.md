@@ -33,7 +33,7 @@ Goals:
 ## Week 2 – API Integration & Data Layer
 
 Goals:
-	•	Connect to the chosen API (e.g., RAWG API or IGDB).
+	•	Connect to the chosen API (RAWG API).
 	•	Implement Retrofit for network calls.
 	•	Set up data layer (Repositories, DTOs, Models).
 	•	Use Coroutines + Flow for async data.
