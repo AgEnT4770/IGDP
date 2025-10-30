@@ -3,8 +3,10 @@ package com.example.igdp
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -17,7 +19,12 @@ class GameViewModel : ViewModel() {
         .create(RawgApiService::class.java)
 
     val games = mutableStateOf<Map<String, List<Game>>>(emptyMap())
+    val searchResults = mutableStateOf<List<Game>>(emptyList())
     val isLoading = mutableStateOf(false)
+    private var searchJob: Job? = null
+
+    // State to manage the genre selected from the home page
+    val initialDiscoverGenre = mutableStateOf<Genre?>(null)
 
     fun fetchGames() {
         viewModelScope.launch {
@@ -73,10 +80,12 @@ class GameViewModel : ViewModel() {
         viewModelScope.launch {
             isLoading.value = true
             try {
+                val isTrending = genreName == "Trending"
                 val response = apiService.getGames(
                     apiKey = "6e5ea525d41242d3b765b9e83eba84e7",
-                    genres = genreSlug,
-                    pageSize = 10
+                    genres = if (!isTrending) genreSlug else null,
+                    ordering = if (isTrending) genreSlug else null,
+                    pageSize = if (isTrending) 10 else 40
                 )
 
                 val currentMap = games.value.toMutableMap()
@@ -90,4 +99,35 @@ class GameViewModel : ViewModel() {
         }
     }
 
+    fun searchGames(query: String) {
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
+            delay(300) // Debounce
+            isLoading.value = true
+            try {
+                if (query.isNotBlank()) {
+                    val response = apiService.getGames(
+                        apiKey = "6e5ea525d41242d3b765b9e83eba84e7",
+                        search = query,
+                        pageSize = 20
+                    )
+                    searchResults.value = response.results
+                } else {
+                    searchResults.value = emptyList()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                isLoading.value = false
+            }
+        }
+    }
+
+    fun setInitialGenreForDiscover(genre: Genre) {
+        initialDiscoverGenre.value = genre
+    }
+
+    fun consumeInitialGenre() {
+        initialDiscoverGenre.value = null
+    }
 }

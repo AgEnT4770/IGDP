@@ -6,6 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -74,9 +75,34 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+data class Genre(val name: String, val slug: String)
+
+internal val genres = listOf(
+    Genre("Trending", "-popularity"),
+    Genre("Action", "action"),
+    Genre("Adventure", "adventure"),
+    Genre("RPG", "role-playing-games-rpg"),
+    Genre("Strategy", "strategy"),
+    Genre("Indie", "indie"),
+    Genre("Shooter", "shooter"),
+    Genre("Casual", "casual"),
+    Genre("Simulation", "simulation"),
+    Genre("Puzzle", "puzzle"),
+    Genre("Arcade", "arcade"),
+    Genre("Platformer", "platformer"),
+    Genre("Massively Multiplayer", "massively-multiplayer"),
+    Genre("Racing", "racing"),
+    Genre("Sports", "sports"),
+    Genre("Fighting", "fighting"),
+    Genre("Family", "family"),
+    Genre("Board Games", "board-games"),
+    Genre("Card", "card"),
+    Genre("Educational", "educational")
+)
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-fun MainScreen() {
+fun MainScreen(gameViewModel: GameViewModel = viewModel()) { // Hoisted ViewModel
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
     val navItems = listOf("Home", "Search", "Discover", "Profile")
     val navIcons = listOf(
@@ -148,12 +174,28 @@ fun MainScreen() {
             when (page) {
                 0 -> ScrollContent(
                     innerPadding = innerPadding,
+                    gameViewModel = gameViewModel,
                     onUserInteractingWithLazyRow = { isInteracting ->
                         userScrollEnabled = !isInteracting
+                    },
+                    onShowMoreClicked = { categoryName ->
+                        val genre = genres.find { it.name == categoryName }
+                        if (genre != null) {
+                            gameViewModel.setInitialGenreForDiscover(genre)
+                            coroutineScope.launch {
+                                pagerState.animateScrollToPage(2) // Switch to Discover page
+                            }
+                        }
                     }
                 )
-                1 -> SearchPage(modifier = Modifier.padding(innerPadding))
-                2 -> DiscoverPage(modifier = Modifier.padding(innerPadding))
+                1 -> SearchPage(
+                    modifier = Modifier.padding(innerPadding),
+                    gameViewModel = gameViewModel
+                )
+                2 -> DiscoverPage(
+                    modifier = Modifier.padding(innerPadding),
+                    gameViewModel = gameViewModel
+                )
                 3 -> ProfilePage(modifier = Modifier.padding(innerPadding))
             }
         }
@@ -163,8 +205,9 @@ fun MainScreen() {
 @Composable
 fun ScrollContent(
     innerPadding: PaddingValues,
-    gameViewModel: GameViewModel = viewModel(),
-    onUserInteractingWithLazyRow: (Boolean) -> Unit
+    gameViewModel: GameViewModel,
+    onUserInteractingWithLazyRow: (Boolean) -> Unit,
+    onShowMoreClicked: (String) -> Unit
 ) {
     LaunchedEffect(Unit) {
         gameViewModel.fetchGames()
@@ -177,11 +220,24 @@ fun ScrollContent(
     ) {
         gamesByCategory.forEach { (category, games) ->
             item {
-                Text(
-                    text = category,
-                    style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier.padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 8.dp)
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = category,
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                    Text(
+                        text = "Show more ->",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.clickable { onShowMoreClicked(category) }
+                    )
+                }
             }
             item {
                 LazyRow(
@@ -189,7 +245,7 @@ fun ScrollContent(
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     modifier = Modifier.pointerInput(Unit) {
                         detectTapGestures(
-                            onPress = { 
+                            onPress = {
                                 onUserInteractingWithLazyRow(true)
                                 try {
                                     awaitRelease()
@@ -201,31 +257,40 @@ fun ScrollContent(
                     }
                 ) {
                     items(games) { game ->
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.width(120.dp)
-                        ) {
-                            Image(
-                                painter = rememberAsyncImagePainter(game.background_image),
-                                contentDescription = game.name,
-                                modifier = Modifier
-                                    .height(160.dp)
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(8.dp)),
-                                contentScale = ContentScale.Crop
-                            )
-                            Text(
-                                text = game.name,
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.padding(top = 8.dp),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
+                        GameCard(game)
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+fun GameCard(game: Game) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .width(120.dp)
+    ) {
+        Image(
+            painter = rememberAsyncImagePainter(
+                model = game.background_image,
+                placeholder = painterResource(id = R.drawable.gamingbook) // Placeholder image
+            ),
+            contentDescription = game.name,
+            modifier = Modifier
+                .height(160.dp)
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp)),
+            contentScale = ContentScale.Crop
+        )
+        Text(
+            text = game.name,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(top = 8.dp),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
