@@ -17,9 +17,12 @@ class GameViewModel : ViewModel() {
         .create(RawgApiService::class.java)
 
     val games = mutableStateOf<Map<String, List<Game>>>(emptyMap())
+    val isLoading = mutableStateOf(false)
 
     fun fetchGames() {
         viewModelScope.launch {
+            isLoading.value = true
+
             val categories = mapOf(
                 "Trending" to "-popularity",
                 "Action" to "action",
@@ -29,33 +32,62 @@ class GameViewModel : ViewModel() {
                 "Indie" to "indie"
             )
 
-            val deferredGames = categories.map { (category, value) ->
-                async {
-                    val response = apiService.getGames(
-                        apiKey = "6e5ea525d41242d3b765b9e83eba84e7",
-                        genres = if (category != "Trending") value else null,
-                        ordering = if (category == "Trending") value else null,
-                        pageSize = when (category) {
-                            "Trending" -> 5
-                            "Action" -> 15 // Fetch more to ensure we have 10 after filtering
-                            else -> 10
-                        }
-                    )
-                    category to response.results
+            try {
+                val deferredGames = categories.map { (category, value) ->
+                    async {
+                        val response = apiService.getGames(
+                            apiKey = "6e5ea525d41242d3b765b9e83eba84e7",
+                            genres = if (category != "Trending") value else null,
+                            ordering = if (category == "Trending") value else null,
+                            pageSize = when (category) {
+                                "Trending" -> 5
+                                "Action" -> 15
+                                else -> 10
+                            }
+                        )
+                        category to response.results
+                    }
                 }
+
+                val gamesMap = deferredGames.awaitAll().toMap().toMutableMap()
+
+                val trendingGames = gamesMap["Trending"] ?: emptyList()
+                val actionGames = gamesMap["Action"] ?: emptyList()
+
+                if (trendingGames.isNotEmpty() && actionGames.isNotEmpty()) {
+                    val trendingGameIds = trendingGames.map { it.id }.toSet()
+                    gamesMap["Action"] =
+                        actionGames.filterNot { trendingGameIds.contains(it.id) }.take(10)
+                }
+
+                games.value = gamesMap
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                isLoading.value = false
             }
-
-            val gamesMap = deferredGames.awaitAll().toMap().toMutableMap()
-
-            val trendingGames = gamesMap["Trending"] ?: emptyList()
-            val actionGames = gamesMap["Action"] ?: emptyList()
-
-            if (trendingGames.isNotEmpty() && actionGames.isNotEmpty()) {
-                val trendingGameIds = trendingGames.map { it.id }.toSet()
-                gamesMap["Action"] = actionGames.filterNot { trendingGameIds.contains(it.id) }.take(10)
-            }
-
-            games.value = gamesMap
         }
     }
+
+    fun fetchGamesByGenre(genreName: String, genreSlug: String) {
+        viewModelScope.launch {
+            isLoading.value = true
+            try {
+                val response = apiService.getGames(
+                    apiKey = "6e5ea525d41242d3b765b9e83eba84e7",
+                    genres = genreSlug,
+                    pageSize = 10
+                )
+
+                val currentMap = games.value.toMutableMap()
+                currentMap[genreName] = response.results
+                games.value = currentMap
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                isLoading.value = false
+            }
+        }
+    }
+
 }
