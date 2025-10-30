@@ -2,7 +2,13 @@ package com.example.igdp
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -10,6 +16,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MaterialTheme.colorScheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,64 +24,36 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil.compose.rememberAsyncImagePainter
-
-data class Genre(val name: String, val slug: String)
-
-private val genres = listOf(
-    Genre("Trending", "-popularity"),
-    Genre("Action", "action"),
-    Genre("Adventure", "adventure"),
-    Genre("RPG", "role-playing-games-rpg"),
-    Genre("Strategy", "strategy"),
-    Genre("Indie", "indie"),
-    Genre("Shooter", "shooter"),
-    Genre("Casual", "casual"),
-    Genre("Simulation", "simulation"),
-    Genre("Puzzle", "puzzle"),
-    Genre("Arcade", "arcade"),
-    Genre("Platformer", "platformer"),
-    Genre("Massively Multiplayer", "massively-multiplayer"),
-    Genre("Racing", "racing"),
-    Genre("Sports", "sports"),
-    Genre("Fighting", "fighting"),
-    Genre("Family", "family"),
-    Genre("Board Games", "board-games"),
-    Genre("Card", "card"),
-    Genre("Educational", "educational")
-)
 
 @Composable
 fun DiscoverPage(
     modifier: Modifier = Modifier,
     gameViewModel: GameViewModel = viewModel()
 ) {
-    // Default selected genre is "Trending"
-    var selectedGenre by remember { mutableStateOf(genres.first { it.name == "Trending" }) }
+    val initialGenre = gameViewModel.initialDiscoverGenre.value
+    var selectedGenre by remember { mutableStateOf(initialGenre ?: genres.first { it.name == "Trending" }) }
+    
+    val allGamesMap = gameViewModel.games.value
+    val currentGames = allGamesMap[selectedGenre.name] ?: emptyList()
 
-    // Store games of the currently selected genre only
-    val currentGames = remember { mutableStateOf<List<Game>>(emptyList()) }
-
-    // Fetch data whenever selected genre changes
     LaunchedEffect(selectedGenre) {
-        gameViewModel.isLoading.value = true
-        try {
-            gameViewModel.fetchGamesByGenre(selectedGenre.name, selectedGenre.slug)
-            val fetched = gameViewModel.games.value[selectedGenre.name] ?: emptyList()
-            currentGames.value = fetched
-        } finally {
-            gameViewModel.isLoading.value = false
+        gameViewModel.fetchGamesByGenre(selectedGenre.name, selectedGenre.slug)
+    }
+
+    // Consume the initial genre after it has been used
+    LaunchedEffect(initialGenre) {
+        if (initialGenre != null) {
+            gameViewModel.consumeInitialGenre()
         }
     }
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(colorScheme.background)
             .padding(8.dp)
     ) {
         GenreChips(
@@ -97,7 +76,7 @@ fun DiscoverPage(
                 }
             }
 
-            currentGames.value.isEmpty() -> {
+            currentGames.isEmpty() -> {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -111,7 +90,7 @@ fun DiscoverPage(
             }
 
             else -> {
-                GameGrid(currentGames.value)
+                GameGrid(currentGames)
             }
         }
     }
@@ -158,4 +137,3 @@ fun GameGrid(games: List<Game>) {
         }
     }
 }
-

@@ -9,8 +9,9 @@ interface RawgApiService {
         @Query("key") apiKey: String,
         @Query("genres") genres: String? = null,
         @Query("ordering") ordering: String? = null,
-        @Query("page_size") pageSize: Int? = null ,
-        @Query("page") page: Int? = null
+        @Query("page_size") pageSize: Int? = null,
+        @Query("page") page: Int? = null,
+        @Query("search") search: String? = null
     ): GameResponse
 
     companion object {
