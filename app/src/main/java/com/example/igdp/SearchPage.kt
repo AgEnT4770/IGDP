@@ -31,7 +31,8 @@ import com.example.igdp.ui.theme.IGDPTheme
 @Composable
 fun SearchPage(
     modifier: Modifier = Modifier,
-    gameViewModel: GameViewModel = viewModel()
+    gameViewModel: GameViewModel = viewModel(),
+    onGameClicked: (Int) -> Unit = {}
 ) {
     var searchQuery by remember { mutableStateOf("") }
     val searchResults by gameViewModel.searchResults
@@ -84,7 +85,7 @@ fun SearchPage(
                     modifier = Modifier.fillMaxSize()
                 ) {
                     items(searchResults) { game ->
-                        GameCard(game)
+                        GameCard(game = game, onGameClicked = onGameClicked)
                     }
                 }
             }

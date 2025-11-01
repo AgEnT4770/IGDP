@@ -1,5 +1,6 @@
 package com.example.igdp
 
+import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -59,8 +60,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import coil.compose.rememberAsyncImagePainter
 import com.example.igdp.ui.theme.IGDPTheme
+import com.example.igdp.ui.theme.White
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -69,11 +77,33 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             IGDPTheme {
-                MainScreen()
+                AppNavigation()
             }
         }
     }
 }
+
+@Composable
+fun AppNavigation() {
+    val navController = rememberNavController()
+    NavHost(navController = navController, startDestination = "main") {
+        composable("main") {
+            MainScreen(navController = navController)
+        }
+        composable(
+            route = "gameDetails/{gameId}",
+            arguments = listOf(navArgument("gameId") { type = NavType.IntType })
+        ) { backStackEntry ->
+            val gameId = backStackEntry.arguments?.getInt("gameId")
+            if (gameId != null) {
+                GamePage(gameId = gameId, viewModel = viewModel(), onGameClicked = { gameId ->
+                    navController.navigate("gameDetails/$gameId")
+                })
+            }
+        }
+    }
+}
+
 
 data class Genre(val name: String, val slug: String)
 
@@ -102,7 +132,7 @@ internal val genres = listOf(
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-fun MainScreen(gameViewModel: GameViewModel = viewModel()) { // Hoisted ViewModel
+fun MainScreen(navController: NavController, gameViewModel: GameViewModel = viewModel()) { // Hoisted ViewModel
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
     val navItems = listOf("Home", "Search", "Discover", "Profile")
     val navIcons = listOf(
@@ -186,15 +216,24 @@ fun MainScreen(gameViewModel: GameViewModel = viewModel()) { // Hoisted ViewMode
                                 pagerState.animateScrollToPage(2) // Switch to Discover page
                             }
                         }
+                    },
+                    onGameClicked = { gameId ->
+                        navController.navigate("gameDetails/$gameId")
                     }
                 )
                 1 -> SearchPage(
                     modifier = Modifier.padding(innerPadding),
-                    gameViewModel = gameViewModel
+                    gameViewModel = gameViewModel,
+                    onGameClicked = {
+                        navController.navigate("gameDetails/$it")
+                    }
                 )
                 2 -> DiscoverPage(
                     modifier = Modifier.padding(innerPadding),
-                    gameViewModel = gameViewModel
+                    gameViewModel = gameViewModel,
+                    onGameClicked = {
+                        navController.navigate("gameDetails/$it")
+                    }
                 )
                 3 -> ProfilePage(modifier = Modifier.padding(innerPadding))
             }
@@ -207,7 +246,8 @@ fun ScrollContent(
     innerPadding: PaddingValues,
     gameViewModel: GameViewModel,
     onUserInteractingWithLazyRow: (Boolean) -> Unit,
-    onShowMoreClicked: (String) -> Unit
+    onShowMoreClicked: (String) -> Unit,
+    onGameClicked: (Int) -> Unit
 ) {
     LaunchedEffect(Unit) {
         gameViewModel.fetchGames()
@@ -257,7 +297,7 @@ fun ScrollContent(
                     }
                 ) {
                     items(games) { game ->
-                        GameCard(game)
+                        GameCard(game, onGameClicked = onGameClicked)
                     }
                 }
             }
@@ -266,11 +306,12 @@ fun ScrollContent(
 }
 
 @Composable
-fun GameCard(game: Game) {
+fun GameCard(game: Game, textColor : androidx.compose.ui.graphics.Color = White , onGameClicked: (Int) -> Unit) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .width(120.dp)
+            .clickable { onGameClicked(game.id) }
     ) {
         Image(
             painter = rememberAsyncImagePainter(
@@ -286,6 +327,7 @@ fun GameCard(game: Game) {
         )
         Text(
             text = game.name,
+            color = textColor,
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(top = 8.dp),
             maxLines = 1,
@@ -298,6 +340,6 @@ fun GameCard(game: Game) {
 @Composable
 fun GreetingPreview() {
     IGDPTheme {
-        MainScreen()
+        AppNavigation()
     }
 }

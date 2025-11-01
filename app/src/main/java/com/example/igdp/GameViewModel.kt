@@ -1,6 +1,15 @@
 package com.example.igdp
 
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
@@ -22,6 +31,8 @@ class GameViewModel : ViewModel() {
     val searchResults = mutableStateOf<List<Game>>(emptyList())
     val isLoading = mutableStateOf(false)
     private var searchJob: Job? = null
+    val gameDetails = mutableStateOf<Game?>(null)
+    val relatedGames = mutableStateOf<List<Game>>(emptyList())
 
     // State to manage the genre selected from the home page
     val initialDiscoverGenre = mutableStateOf<Genre?>(null)
@@ -130,4 +141,36 @@ class GameViewModel : ViewModel() {
     fun consumeInitialGenre() {
         initialDiscoverGenre.value = null
     }
+
+
+    fun fetchGameDetails(gameId: Int) {
+        viewModelScope.launch {
+            try {
+                val response = apiService.getGameDetails(
+                    id = gameId,
+                    apiKey = "6e5ea525d41242d3b765b9e83eba84e7",
+                )
+                gameDetails.value = response
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+
+    }
+
+    fun fetchRelatedGames(genreSlug: String) {
+        viewModelScope.launch {
+            try {
+                val response = apiService.getGames(
+                    apiKey = "6e5ea525d41242d3b765b9e83eba84e7",
+                    genres = genreSlug,
+                    pageSize = 10
+                )
+                relatedGames.value = response.results
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
 }

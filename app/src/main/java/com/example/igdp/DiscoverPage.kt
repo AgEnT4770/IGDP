@@ -31,7 +31,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 @Composable
 fun DiscoverPage(
     modifier: Modifier = Modifier,
-    gameViewModel: GameViewModel = viewModel()
+    gameViewModel: GameViewModel = viewModel(),
+    onGameClicked: (Int) -> Unit
 ) {
     val initialGenre = gameViewModel.initialDiscoverGenre.value
     var selectedGenre by remember { mutableStateOf(initialGenre ?: genres.first { it.name == "Trending" }) }
@@ -90,7 +91,7 @@ fun DiscoverPage(
             }
 
             else -> {
-                GameGrid(currentGames)
+                GameGrid(currentGames, onGameClicked)
             }
         }
     }
@@ -125,7 +126,7 @@ fun GenreChips(
 }
 
 @Composable
-fun GameGrid(games: List<Game>) {
+fun GameGrid(games: List<Game>,onGameClicked: (Int) -> Unit) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(2),
         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -133,7 +134,7 @@ fun GameGrid(games: List<Game>) {
         modifier = Modifier.fillMaxSize()
     ) {
         items(games) { game ->
-            GameCard(game)
+            GameCard(game,onGameClicked = onGameClicked)
         }
     }
 }
